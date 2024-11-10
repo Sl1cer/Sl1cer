@@ -1,0 +1,123 @@
+import SpriteKit
+
+class GameScene: SKScene {
+    
+    var bird: SKSpriteNode!
+    var pipes: [SKNode] = []
+    var isGameOver = false
+    var score = 0
+    var scoreLabel: SKLabelNode!
+    
+    let birdTexture = SKTexture(imageNamed: "bird") // Replace with your bird image
+    let pipeTexture = SKTexture(imageNamed: "pipe") // Replace with your pipe image
+    
+    override func didMove(to view: SKView) {
+        self.physicsWorld.gravity = CGVector(dx: 0, dy: -1) // Gravity pulling the bird down
+        self.physicsWorld.contactDelegate = self
+        
+        setupBird()
+        setupScoreLabel()
+        startGame()
+    }
+    
+    // Setup Bird
+    func setupBird() {
+        bird = SKSpriteNode(texture: birdTexture)
+        bird.position = CGPoint(x: self.frame.midX / 2, y: self.frame.midY)
+        bird.physicsBody = SKPhysicsBody(texture: birdTexture, size: bird.size)
+        bird.physicsBody?.categoryBitMask = PhysicsCategory.Bird
+        bird.physicsBody?.contactTestBitMask = PhysicsCategory.Pipe
+        bird.physicsBody?.collisionBitMask = PhysicsCategory.Ground
+        bird.physicsBody?.isDynamic = true
+        addChild(bird)
+    }
+    
+    // Setup Score Label
+    func setupScoreLabel() {
+        scoreLabel = SKLabelNode(fontNamed: "Arial")
+        scoreLabel.text = "Score: \(score)"
+        scoreLabel.position = CGPoint(x: self.frame.midX, y: self.frame.maxY - 50)
+        scoreLabel.fontSize = 40
+        addChild(scoreLabel)
+    }
+    
+    // Start the Game
+    func startGame() {
+        score = 0
+        isGameOver = false
+        bird.position = CGPoint(x: self.frame.midX / 2, y: self.frame.midY)
+        
+        pipes.removeAll()
+        spawnPipes()
+        run(SKAction.repeatForever(SKAction.sequence([SKAction.wait(forDuration: 3), SKAction.run(spawnPipes)])))
+    }
+    
+    // Spawn Pipes
+    func spawnPipes() {
+        guard !isGameOver else { return }
+        
+        let pipeHeight = CGFloat.random(in: 150...300)
+        
+        // Top pipe
+        let topPipe = SKSpriteNode(texture: pipeTexture)
+        topPipe.position = CGPoint(x: self.frame.width + topPipe.size.width / 2, y: pipeHeight + topPipe.size.height / 2)
+        topPipe.physicsBody = SKPhysicsBody(texture: pipeTexture, size: topPipe.size)
+        topPipe.physicsBody?.isDynamic = false
+        addChild(topPipe)
+        
+        // Bottom pipe
+        let bottomPipe = SKSpriteNode(texture: pipeTexture)
+        bottomPipe.position = CGPoint(x: self.frame.width + bottomPipe.size.width / 2, y: pipeHeight - pipeTexture.size().height - 150)
+        bottomPipe.physicsBody = SKPhysicsBody(texture: pipeTexture, size: bottomPipe.size)
+        bottomPipe.physicsBody?.isDynamic = false
+        addChild(bottomPipe)
+        
+        // Pipe movement
+        let moveAction = SKAction.moveTo(x: -topPipe.size.width / 2, duration: 4)
+        let removeAction = SKAction.removeFromParent()
+        topPipe.run(SKAction.sequence([moveAction, removeAction]))
+        bottomPipe.run(SKAction.sequence([moveAction, removeAction]))
+        
+        pipes.append(topPipe)
+        pipes.append(bottomPipe)
+    }
+    
+    // Handle Touches (Bird Jump)
+    override func touchesBegan(_ touches: Set<UITouch>, with event: UIEvent?) {
+        guard !isGameOver else { return }
+        
+        // Make the bird jump
+        bird.physicsBody?.velocity = CGVector(dx: 0, dy: 0)
+        bird.physicsBody?.applyImpulse(CGVector(dx: 0, dy: 15))
+    }
+    
+    // Update the Game Logic
+    override func update(_ currentTime: TimeInterval) {
+        if !isGameOver {
+            // Check for collisions with pipes
+            for pipe in pipes {
+                if bird.frame.intersects(pipe.frame) {
+                    gameOver()
+                }
+            }
+        }
+    }
+    
+    // Game Over Logic
+    func gameOver() {
+        isGameOver = true
+        // Display a Game Over message or transition to a different scene
+    }
+    
+    // Handle Score Updates
+    func increaseScore() {
+        score += 1
+        scoreLabel.text = "Score: \(score)"
+    }
+}
+
+struct PhysicsCategory {
+    static let Bird: UInt32 = 0x1 << 0
+    static let Pipe: UInt32 = 0x1 << 1
+    static let Ground: UInt32 = 0x1 << 2
+}
